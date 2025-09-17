@@ -13,7 +13,7 @@ const Register = () => {
     email: '',
     phone: '',
     password: '',
-    confirmPassword: '',
+    password_confirmation: '',
     address: '',
     city: '',
     state: '',
@@ -38,7 +38,7 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (formData.password !== formData.confirmPassword) {
+    if (formData.password !== formData.password_confirmation) {
       setError('Passwords do not match');
       return false;
     }
@@ -64,8 +64,8 @@ const Register = () => {
     setError('');
 
     try {
-      // Prepare data for API (remove confirmPassword and agreeToTerms)
-      const { confirmPassword, agreeToTerms, ...userData } = formData;
+      // Prepare data for API (remove only agreeToTerms, keep password_confirmation for backend validation)
+      const { agreeToTerms, ...userData } = formData;
       
       const result = await register(userData);
       
@@ -145,17 +145,17 @@ const Register = () => {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-5 w-5 text-gray-400" />
                   </div>
-                  <input
-                    id="lastName"
-                    name="last_name"
-                    type="text"
-                    autoComplete="family-name"
-                    required
-                    value={formData.last_name}
-                    onChange={handleInputChange}
+                                     <input
+                     id="lastName"
+                     name="last_name"
+                     type="text"
+                     autoComplete="family-name"
+                     required
+                     value={formData.last_name}
+                     onChange={handleInputChange}
                     className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Enter your last name"
-                  />
+                     placeholder="Enter your last name"
+                   />
                 </div>
               </div>
             </div>
@@ -295,9 +295,7 @@ const Register = () => {
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
                 <option value="Nigeria">Nigeria</option>
-                <option value="Ghana">Ghana</option>
-                <option value="Kenya">Kenya</option>
-                <option value="South Africa">South Africa</option>
+                
               </select>
             </div>
 
@@ -340,7 +338,7 @@ const Register = () => {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700">
                   Confirm Password *
                 </label>
                 <div className="mt-1 relative">
@@ -348,12 +346,12 @@ const Register = () => {
                     <Lock className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="confirmPassword"
-                    name="confirmPassword"
+                    id="password_confirmation"
+                    name="password_confirmation"
                     type={showConfirmPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     required
-                    value={formData.confirmPassword}
+                    value={formData.password_confirmation}
                     onChange={handleInputChange}
                     className="appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Confirm your password"
