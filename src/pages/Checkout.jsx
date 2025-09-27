@@ -4,10 +4,11 @@ import { ArrowLeft, CreditCard, Truck, MapPin, User, Mail, Phone, Lock } from 'l
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ordersAPI } from '../services/api';
+import PaystackPayment from '../components/PaystackPayment';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cartItems, cartTotal, cartCount } = useCart();
+  const { cartItems, cartTotal, cartCount, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -25,6 +26,8 @@ const Checkout = () => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
 
   // Populate form with user data when component mounts
   useEffect(() => {
@@ -54,11 +57,11 @@ const Checkout = () => {
   const calculateShipping = () => {
     switch (formData.shippingMethod) {
       case 'express':
-        return 7500; // 5000 base + 2500 extra
+        return 7500.00; // 5000 base + 2500 extra
       case 'overnight':
-        return 10000; // 5000 base + 5000 extra
+        return 10000.00; // 5000 base + 5000 extra
       default:
-        return 5000; // Standard shipping cost
+        return 5000.00; // Standard shipping cost
     }
   };
 
@@ -66,18 +69,19 @@ const Checkout = () => {
     return cartTotal + calculateShipping();
   };
 
-  // Redirect if not authenticated or cart is empty
+  // Redirect if not authenticated or cart is empty (but not during payment process)
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login?redirect=/checkout');
       return;
     }
     
-    if (cartCount === 0) {
+    // Don't redirect to cart if we're in the middle of payment process
+    if (cartCount === 0 && !showPayment) {
       navigate('/cart');
       return;
     }
-  }, [isAuthenticated, cartCount, navigate]);
+  }, [isAuthenticated, cartCount, navigate, showPayment]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -92,8 +96,9 @@ const Checkout = () => {
     setIsProcessing(true);
 
     try {
-      // Create order data
+      // Prepare order data for payment (don't create order yet)
       const orderData = {
+        user_id: user?.id || 1,
         shipping_address: {
           first_name: formData.firstName,
           last_name: formData.lastName,
@@ -117,23 +122,66 @@ const Checkout = () => {
           email: formData.email
         },
         shipping_method: formData.shippingMethod,
-        payment_method: formData.paymentMethod,
+        payment_method: 'paystack',
         notes: `Shipping method: ${formData.shippingMethod}`
       };
 
-      // Create order via API
-      const response = await ordersAPI.createOrder(orderData);
+      // Store order data and show payment (order will be created after successful payment)
+      setCurrentOrder({
+        orderData: orderData,
+        total: calculateTotal()
+      });
+      setShowPayment(true);
+      setIsProcessing(false);
+    } catch (error) {
+      console.error('Error preparing payment:', error);
+      alert('Error preparing payment. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (paymentData) => {
+    console.log('Payment success callback triggered:', paymentData);
+    try {
+      // Add payment reference to order data
+      const orderDataWithPayment = {
+        ...currentOrder.orderData,
+        payment_reference: paymentData.reference || `PAY_${Date.now()}`,
+      };
+      
+      console.log('Creating order with data:', orderDataWithPayment);
+      
+      // Create order after successful payment
+      const response = await ordersAPI.createOrder(orderDataWithPayment);
+      
+      console.log('Order creation response:', response.data);
       
       if (response.data.success) {
+        // Clear cart after successful order creation
+        await clearCart(user?.id);
+        
+        console.log('Redirecting to order confirmation:', response.data.data.order_number);
+        
         // Redirect to order confirmation
         navigate(`/order-confirmation/${response.data.data.order_number}`);
       } else {
         throw new Error(response.data.message || 'Failed to create order');
       }
     } catch (error) {
-      console.error('Order creation failed:', error);
-      setIsProcessing(false);
+      console.error('Order creation after payment failed:', error);
+      alert('Payment successful but order creation failed. Please contact support.');
     }
+  };
+
+  const handlePaymentError = (error) => {
+    console.error('Payment failed:', error);
+    // Keep payment modal open for retry
+  };
+
+  const handlePaymentClose = () => {
+    setShowPayment(false);
+    setCurrentOrder(null);
+    // Don't clear the cart here - let the user retry payment
   };
 
   const isFormValid = () => {
@@ -408,15 +456,15 @@ const Checkout = () => {
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="credit_card"
-                      checked={formData.paymentMethod === 'credit_card'}
+                      value="paystack"
+                      checked={formData.paymentMethod === 'paystack'}
                       onChange={handleInputChange}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">Credit Card</p>
+                          <p className="text-sm font-medium text-gray-900">Paystack</p>
                           <p className="text-sm text-gray-500">Secure payment with cards, bank transfers, and more</p>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -510,6 +558,36 @@ const Checkout = () => {
             </div>
           </div>
         </div>
+
+        {/* Payment Modal */}
+        {showPayment && currentOrder && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Complete Payment</h3>
+                  <button
+                    onClick={handlePaymentClose}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <PaystackPayment
+                  orderData={currentOrder.orderData}
+                  email={formData.email}
+                  amount={currentOrder.total}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                  onClose={handlePaymentClose}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

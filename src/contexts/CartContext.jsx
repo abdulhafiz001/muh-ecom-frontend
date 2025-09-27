@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { cartAPI } from '../services/api';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
@@ -12,25 +13,26 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // For now, we'll work without authentication
-  // Later we can integrate with AuthContext when needed
-  const isAuthenticated = false;
-
-  // Load cart items when component mounts
+  // Load cart items when component mounts or user changes
   useEffect(() => {
-    loadCart(); // Load cart from API when component mounts
-  }, []);
+    if (isAuthenticated) {
+      loadCart(); // Load cart from API when component mounts
+    } else {
+      setCartItems([]); // Clear cart when not authenticated
+    }
+  }, [isAuthenticated, user?.id]);
 
   const loadCart = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await cartAPI.getCart();
+      const response = await cartAPI.getCart(user?.id);
       setCartItems(response.data.data.items || []);
     } catch (err) {
       console.error('Failed to load cart:', err);
@@ -45,7 +47,7 @@ export const CartProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      await cartAPI.addToCart(productId, quantity);
+      await cartAPI.addToCart(productId, quantity, user?.id);
       await loadCart(); // Reload cart to get updated data
       
       return { success: true };
@@ -63,7 +65,7 @@ export const CartProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      await cartAPI.updateCartItem(itemId, quantity);
+      await cartAPI.updateCartItem(itemId, quantity, user?.id);
       await loadCart(); // Reload cart to get updated data
       
       return { success: true };
@@ -81,7 +83,7 @@ export const CartProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      await cartAPI.removeFromCart(itemId);
+      await cartAPI.removeFromCart(itemId, user?.id);
       await loadCart(); // Reload cart to get updated data
       
       return { success: true };
@@ -99,7 +101,7 @@ export const CartProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      await cartAPI.clearCart();
+      await cartAPI.clearCart(user?.id);
       setCartItems([]);
       
       return { success: true };

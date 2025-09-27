@@ -69,22 +69,30 @@ export const productsAPI = {
 
 // Cart API calls
 export const cartAPI = {
-  getCart: () => api.get('/cart'),
-  addToCart: (productId, quantity) => 
-    api.post('/cart/add', { product_id: productId, quantity }),
-  updateCartItem: (itemId, quantity) => 
-    api.put(`/cart/${itemId}`, { quantity }),
-  removeFromCart: (itemId) => api.delete(`/cart/${itemId}`),
-  clearCart: () => api.delete('/cart'),
+  getCart: (userId) => api.get(`/cart?user_id=${userId || 1}`),
+  addToCart: (productId, quantity, userId) => 
+    api.post('/cart/add', { product_id: productId, quantity, user_id: userId || 1 }),
+  updateCartItem: (itemId, quantity, userId) => 
+    api.put(`/cart/${itemId}?user_id=${userId || 1}`, { quantity }),
+  removeFromCart: (itemId, userId) => api.delete(`/cart/${itemId}?user_id=${userId || 1}`),
+  clearCart: (userId) => api.delete(`/cart?user_id=${userId || 1}`),
 };
 
 // Orders API calls
 export const ordersAPI = {
   createOrder: (orderData) => api.post('/orders', orderData),
-  getUserOrders: () => api.get('/orders'),
-  getOrder: (id) => api.get(`/orders/${id}`),
-  getOrderById: (id) => api.get(`/orders/${id}`),
+  getUserOrders: (userId) => api.get(`/orders?user_id=${userId || 1}`),
+  getOrder: (id, userId) => api.get(`/orders/${id}?user_id=${userId || 1}`),
+  getOrderById: (id, userId) => api.get(`/orders/${id}?user_id=${userId || 1}`),
+  deleteOrder: (id, userId) => api.delete(`/orders/${id}?user_id=${userId || 1}`),
   getAllOrders: () => api.get('/admin/orders/all'), // For admin use
+};
+
+// Payment API calls
+export const paymentAPI = {
+  initializePayment: (paymentData) => api.post('/payment/initialize', paymentData),
+  verifyPayment: (verificationData) => api.post('/payment/verify', verificationData),
+  getPaymentStatus: (params) => api.get('/payment/status', { params }),
 };
 
 // Admin Products API calls

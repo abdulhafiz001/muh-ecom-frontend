@@ -31,7 +31,7 @@ const UserDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await ordersAPI.getUserOrders();
+      const response = await ordersAPI.getUserOrders(user?.id);
       
       // Debug: Log the response structure
       console.log('Orders API response:', response);
@@ -40,17 +40,20 @@ const UserDashboard = () => {
       // Handle different response structures
       let ordersData = [];
       if (response.data && response.data.data) {
-        // If response has nested data (paginated response)
-        ordersData = response.data.data;
-        console.log('Using nested data.data:', ordersData);
+        // Check if it's a paginated response
+        if (response.data.data.data && Array.isArray(response.data.data.data)) {
+          // Paginated response: response.data.data.data
+          ordersData = response.data.data.data;
+          console.log('Using paginated data.data.data:', ordersData);
+        } else if (Array.isArray(response.data.data)) {
+          // Direct array in response.data.data
+          ordersData = response.data.data;
+          console.log('Using nested data.data:', ordersData);
+        }
       } else if (response.data && Array.isArray(response.data)) {
         // If response.data is directly an array
         ordersData = response.data;
         console.log('Using direct response.data array:', ordersData);
-      } else if (Array.isArray(response.data)) {
-        // If response.data is directly an array
-        ordersData = response.data;
-        console.log('Using response.data as array:', ordersData);
       }
       
       // Ensure we have an array
@@ -68,6 +71,7 @@ const UserDashboard = () => {
       setLoading(false);
     }
   };
+
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-NG', {
@@ -278,19 +282,21 @@ const UserDashboard = () => {
                           </div>
                           
                           <div className="flex items-center justify-between">
-                            <Link
-                              to={`/order-confirmation/${order.order_number}`}
-                              className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Details
-                            </Link>
-                            {order.status === 'delivered' && (
-                              <button className="inline-flex items-center text-gray-600 hover:text-gray-700 text-sm font-medium">
-                                <Star className="h-4 w-4 mr-1" />
-                                Write Review
-                              </button>
-                            )}
+                            <div className="flex items-center space-x-3">
+                              <Link
+                                to={`/order-confirmation/${order.order_number}`}
+                                className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View Details
+                              </Link>
+                              {order.status === 'delivered' && (
+                                <button className="inline-flex items-center text-gray-600 hover:text-gray-700 text-sm font-medium">
+                                  <Star className="h-4 w-4 mr-1" />
+                                  Write Review
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )) : (

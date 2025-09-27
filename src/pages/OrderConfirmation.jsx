@@ -2,9 +2,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { CheckCircle, Package, Truck, Home, ShoppingBag, Mail, Phone } from 'lucide-react';
 import { ordersAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
+  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,7 +19,7 @@ const OrderConfirmation = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await ordersAPI.getOrder(orderId);
+      const response = await ordersAPI.getOrder(orderId, user?.id);
       setOrder(response.data.data);
     } catch (err) {
       console.error('Failed to load order:', err);
@@ -32,6 +34,15 @@ const OrderConfirmation = () => {
       style: 'currency',
       currency: 'NGN'
     }).format(price);
+  };
+
+  const formatShippingMethod = (method) => {
+    const methods = {
+      'standard': 'Standard Shipping',
+      'express': 'Express Shipping',
+      'overnight': 'Overnight Shipping'
+    };
+    return methods[method] || 'Standard Shipping';
   };
 
   if (loading) {
@@ -99,7 +110,19 @@ const OrderConfirmation = () => {
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Method</h3>
-              <p className="text-lg font-semibold text-gray-900">{order.payment_method || 'Credit Card'}</p>
+              <p className="text-lg font-semibold text-gray-900">{order.payment_method || 'Paystack'}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Status</h3>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                order.payment_status === 'completed' 
+                  ? 'bg-green-100 text-green-800' 
+                  : order.payment_status === 'failed'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {order.payment_status || 'Pending'}
+              </span>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Total Amount</h3>
@@ -145,7 +168,7 @@ const OrderConfirmation = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Shipping Method</h3>
-              <p className="text-lg font-semibold text-gray-900">{order.shipping_method || 'Standard Shipping'}</p>
+              <p className="text-lg font-semibold text-gray-900">{formatShippingMethod(order.shipping_method)}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Estimated Delivery</h3>
